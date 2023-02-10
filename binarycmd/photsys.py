@@ -2,16 +2,15 @@
 
 #Dom Rowan 2023
 
-
 class PhotSystem:
 
     def __init__(self, mag=None, absolute_mag=None, color=None,
                  color0=None, color1=None,
                  mist_mag=None, mist_color0=None, mist_color1=None,
                  termination_value=None, rg_turnoff_limit=None,
+                 search_range=None,
                  xlabel='Color (mag)', ylabel=r'$M$ (mag)',
                  plt_range=None):
-
 
         self.mag = mag
         self.absolute_mag = absolute_mag
@@ -24,6 +23,7 @@ class PhotSystem:
         self.mist_color1 = mist_color1
         self.termination_value = termination_value
         self.rg_turnoff_limit = rg_turnoff_limit
+        self.search_range = search_range
 
         self.xlabel = xlabel
         self.ylabel = ylabel
@@ -52,8 +52,8 @@ class PhotSystem:
         mist_color1 = 'Gaia_RP_EDR3'
 
         termination_value = 4.5
-
         rg_turnoff_limit = 0.9
+        search_range = (1, 1.5)
 
         xlabel = r'$G_{\rm{BP}}-G_{\rm{RP}}$ (mag)'
         ylabel = r'$M_G$ (mag)'
@@ -64,6 +64,7 @@ class PhotSystem:
                    color=color, mist_mag=mist_mag,
                    mist_color0=mist_color0, mist_color1=mist_color1,
                    termination_value=termination_value,
+                   search_range=search_range,
                    rg_turnoff_limit=rg_turnoff_limit,
                    xlabel=xlabel, ylabel=ylabel, plt_range=plt_range)
 
@@ -79,13 +80,12 @@ class PhotSystem:
         mist_color1 = 'Gaia_RP_EDR3'
 
         termination_value = 4.5
-
+        search_range = (1, 1.5)
         rg_turnoff_limit = 0.9
 
         xlabel = r'$G_{\rm{BP}}-G_{\rm{RP}}$ (mag)'
         ylabel = r'$M_G$ (mag)'
 
-        #plt_range = [(-0.6, 2.5), (-4, 8.5)]
         plt_range = [(-0.6, 2.4), (-4.1, 8.5)]
 
         return cls(mag=mag, absolute_mag=absolute_mag,
@@ -93,6 +93,7 @@ class PhotSystem:
                    mist_color0=mist_color0, mist_color1=mist_color1,
                    termination_value=termination_value,
                    rg_turnoff_limit=rg_turnoff_limit,
+                   search_range=search_range,
                    xlabel=xlabel, ylabel=ylabel, plt_range=plt_range)
 
 
@@ -108,7 +109,7 @@ class PhotSystem:
         mist_color1 = '2MASS_Ks'
 
         termination_value = 3
-
+        search_range=(0.4, 1.2)
         rg_turnoff_limit = 0.4
 
         xlabel = r'$J - K$ (mag)'
@@ -120,6 +121,7 @@ class PhotSystem:
                    color=color, mist_mag=mist_mag,
                    mist_color0=mist_color0, mist_color1=mist_color1,
                    termination_value=termination_value,
+                   search_range=search_range,
                    rg_turnoff_limit=rg_turnoff_limit,
                    xlabel=xlabel, ylabel=ylabel, plt_range=plt_range)
 

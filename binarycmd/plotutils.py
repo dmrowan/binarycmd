@@ -11,6 +11,8 @@ desc="""
 Utility plotting functions
 """
 
+colors = ["#3696ff", "#f70065", "#011a7c", "#761954", "#8800b2"]
+
 def plotparams(ax, labelsize=15):
     '''
     Basic plot params

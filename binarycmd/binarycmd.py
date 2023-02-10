@@ -1,19 +1,27 @@
 #!/usr/bin/env python
 
+from astropy import log
 import matplotlib.pyplot as plt
 from matplotib import rc
 import numpy as np
 import os
 import pandas as pd
 
-import photsys
-import plotutils
-import cmdutils
+from . import photsys
+from .binary_mist_models import *
+from . import plotutils
+from . import cmdutils
 data_path = os.environ.get('BINARYCMD_DIR', None)
 
 if data_path is None:
     print("Please set the BINARYCMD_DIR environment variable to the path to the data")
     sys.exit(1)
+
+#Dom Rowan 2023
+
+desc="""
+Main class for binary star CMD analysis
+"""
 
 class CMD:
 
@@ -215,11 +223,322 @@ class CMD:
         if savefig is not None:
             self.fig.savefig(savefig, dpi=dpi)
 
+    def mark_id(self, id_list, column='id', plot_kwargs=None):
+        
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        if column not in self.df.columns:
+            raise ValueError(f'Column {column} not in CMD.df.columns')
+
+        plot_kwargs.setdefault('marker', 'o')
+        plot_kwargs.setdefault('color', plotutils.colors[0])
+        plot_kwargs.setdefault('edgecolor', 'none')
+        plot_kwargs.setdefault('alpha', 0.8)
+
+        if not cmdutils.check_iter(id_list):
+            id_list = [ id_list ]
+
+        idx = np.where(self.df[column].isin(id_list))[0]
+
+        if not len(idx):
+            log.warning('no targets found to mark')
+
+        for ax in self.ax:
+            
+            ax.scatter(self.df[self.phot_system.color_corrected].iloc[idx],
+                       self.df[self.phot_system.absolute_mag].iloc[idx],
+                       **plot_kwargs)
+
+    def plot_hexbin(self, plot_kwargs=None):
+        
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        plot_kwargs.setdefault('gridsize', (400, 200))
+        plot_kwarga.setdefault('vmin', 10)
+        plot_kwargs.setdefault('vmax', 1000)
+        plot_kwargs.setdefault('cmap', 'Greys')
+        plot_kwargs.setdefault('bins', 'log')
+
+        for ax in self.ax:
+            
+            ax.hexbin(self.df[self.phot_system.color_corrected],
+                      self.df[self.phot_system.absolute_mag],
+                      **plot_kwargs)
+
     def _load_mist_iso(self, fname):
 
         self.mist_iso = mist_iso(fname, self.phot_system)
 
-    def _load_mist_eep(self, eep_dir, mode='tams', n=1.5, self.phot_system):
+    def _load_mist_eep(self, eep_dir, mode='tams', n=1.5):
 
-        self.mist_eep = 
+        self.mist_eep = mist_eep(eep_dir, self.phot_system, iso_result=self.mist_iso,
+                                 mode=mode, n=n)
 
+    def plot_mist_iso(self, which='gaia', iso_fname=None, legend=True, simple_color=False):
+
+        if iso_fname is not None:
+            self._load_mist_iso(iso_fname, which=which)
+
+        if simple_color:
+            colors = ['black', 'black', 'black']
+            phase_labels=['_nolegend_']*3
+        else:
+            colors = ['black', ebutils.colors()[0], ebutils.colors()[2]]
+            phase_labels = ['Main Sequence', 'Subgiant Branch', 'Giant Branch']
+
+        for i in range(len(self.mist_iso.ages)):
+            if self.mist_iso.ages[i] % 0.5 == 0:
+                df = self.mist_iso.df[i]
+                if 'iso_phase' in df.columns:
+                    for ax in self.ax:
+                        ax.plot(df[df.iso_phase == 0].color,
+                                df[df.iso_phase == 0][self.phot_system.mist_mag],
+                                color=colors[0], lw=2, ls='-', label=phase_labels[0])
+                        ax.plot(df[df.iso_phase == 1].color,
+                                df[df.iso_phase == 1][self.phot_system.mist_mag],
+                                color=colors[1],
+                                ls='-',lw=2, label=phase_labels[1])
+                        ax.plot(df[df.iso_phase == 2].color,
+                                df[df.iso_phase == 2][self.phot_system.mist_mag],
+                                color=colors[2],
+                                ls='-', lw=2, label=phase_labels[2])
+
+                        phase_labels = ['_nolegend_']*3
+
+        for ax in self.ax:
+            sg_xvals = np.linspace(
+                    self.mist_iso.sg_spline.x[0],
+                    self.mist_iso.color_intersect,
+                    100)
+            rg_xvals = np.linspace(
+                    self.mist_iso.rg_spline.x[0],
+                    self.mist_iso.sg_spline(self.mist_iso.color_intersect),
+                    100)
+
+            ax.plot(sg_xvals, self.mist_iso.sg_spline(sg_xvals),
+                    color=colors[1], ls='--', lw=2)
+            ax.plot(self.mist_iso.rg_spline(rg_xvals), rg_xvals,
+                    color=colors[2], ls='--', lw=2)
+
+            ax.plot([self.mist_iso.color_intersect,
+                     ax.get_xlim()[1]],
+                    [self.mist_iso.sg_spline(
+                            self.mist_iso.color_intersect)]*2,
+                    color=colors[2], ls='--', lw=2)
+
+        if legend:
+            self.ax[0].legend(edgecolor='black',
+                              fontsize=20, loc='lower left')
+
+    def plot_mist_eep(self, eep_dir=None, iso_fname=None,
+                      legend=True, simple_color=False,
+                      mode='tams', n=1.5, plot_kwargs=None):
+
+        if iso_fname is not None:
+            self._load_mist_iso(iso_fname)
+
+        if eep_dir is not None:
+            self._load_mist_eep(eep_dir, mode=mode, n=n)
+
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        plot_kwargs.setdefault('lw', 2)
+        plot_kwargs.setdefault('alpha', 1.0)
+
+        if simple_color:
+            colors = ['black', 'black', 'black']
+            phase_labels=['_nolegend_']*3
+        else:
+            colors = ['black', plotutils.colors[0], plotutils.colors[2]]
+            phase_labels = ['Main Sequence', 'Subgiant Branch', 'Giant Branch']
+
+        mag0_column = self.phot_system.mist_mag
+        mag1_column = self.phot_system.mist_color0
+        mag2_column = self.phot_system.mist_color1
+
+        termination_val = self.phot_system.termination_value
+
+        sg_xvals = np.linspace(self.mist_eep.sg_spline.x[0],
+                               self.mist_eep.color_intersect, 500)
+
+        if np.abs(termination_val-self.mist_eep.rg_spline(
+                self.mist_eep.color_intersect)) > 1e-4:
+            #need to identify bp_rp rg termination
+            rg_termination = analytic_solvers.binary_search(
+                    lambda x: self.mist_eep.rg_spline(x)-termination_val,
+                    0.5, 2.5, epsilon=1e-4, plot=False)
+            rg_xvals = np.linspace(self.mist_eep.rg_spline.x[0],
+                                   rg_termination, 500)
+        else:
+            rg_xvals = np.linspace(self.mist_eep.rg_spline.x[0],
+                                   self.mist_eep.color_intersect, 500)
+
+        for i in range(len(self.mist_iso.ages)):
+            if self.mist_iso.ages[i] % 0.5 == 0:
+                df = self.mist_iso.df[i]
+
+                idx_change = np.where(
+                        (df.phase == 2) &
+                        (df[mag0_column] > self.mist_eep.rg_spline(df.color) ))[0]
+
+                phase = df.phase.copy().to_numpy()
+                phase[idx_change] = 1
+                df['eep_phase'] = phase
+
+                for ax in self.ax:
+                    ax.plot(df[df.eep_phase == 0].color,
+                            df[df.eep_phase == 0][mag0_column],
+                            color=colors[0], ls='-',
+                            label=phase_labels[0], **plot_kwargs)
+                    ax.plot(df[df.eep_phase == 1].color,
+                            df[df.eep_phase == 1][mag0_column],
+                            color=colors[1],
+                            ls='-', label=phase_labels[1], **plot_kwargs)
+                    ax.plot(df[df.eep_phase == 2].color,
+                            df[df.eep_phase == 2][mag0_column],
+                            color=colors[2],
+                            ls='-', label=phase_labels[2], **plot_kwargs)
+
+                    phase_labels = ['_nolegend_']*3
+
+        for ax in self.ax:
+            ax.plot(sg_xvals, self.mist_eep.sg_spline(sg_xvals),
+                    color=colors[1], ls='--', **plot_kwargs)
+            ax.plot(rg_xvals, self.mist_eep.rg_spline(rg_xvals),
+                    color=colors[1], ls='--', **plot_kwargs)
+            ax.plot([self.mist_eep.color_intersect, ax.get_xlim()[1]],
+                    [self.mist_eep.sg_spline(
+                            self.mist_eep.color_intersect)]*2,
+                    color=colors[2], ls='--', **plot_kwargs)
+
+        if legend:
+            self.ax[0].legend(edgecolor='black',
+                              fontsize=20, loc='lower left')
+
+    def plot_single_star_isochrone(self, path=None,
+                                   plot_kwargs=None):
+        
+        if path is not None:
+            self.mist_iso_path = path
+
+        isocmd = read_mist_models.ISOCMD(self.mist_iso_path)
+
+        age_idx = isocmd.age_index(8.0)
+        mag0 = isocmd.isocmds[age_idx][self.phot_system.mist_mag0]
+        mag1 = isocmd.isocmds[age_idx][self.phot_system.mist_color0]
+        mag2 = isocmd.isocmds[age_idx][self.phot_system.mist_color1]
+
+        phase = isocmd.isocmds[age_idx]['phase']
+
+        df = pd.DataFrame({mag0_column:mag0, 'color':mag1-mag2, 'phase':phase})
+        df = df[df.phase == 0].reset_index(drop=True)
+
+        if plot_kwargs is None:
+            plot_kwargs = {}
+
+        plot_kwargs.setdefault('color', 'black')
+        plot_kwargs.setdefault('lw', 2)
+        plot_kwargs.setdefault('ls', '--')
+        plot_kwargs.setdefault('label', 'Single Star Isochrone')
+
+        for ax in self.ax:
+            ax.plot(df.color, df[mag0_column], **plot_kwargs)
+
+    def _identify_components_iso(self):
+
+        mag0_column = self.phot_system.mist_mag
+        mag1_column = self.phot_system.mist_color0
+        mag1_column = self.phot_system.mist_color1
+
+        data_absolute = self.phot_system.absolute_mag
+        data_color = self.phot_system.color_corrected
+        
+        idx_sg = np.where(
+                ((self.df[data_absolute]) < self.mist_iso.sg_spline(
+                        self.df[data_color])) &
+                (self.df[data_color] < self.mist_iso.rg_spline(
+                        self.df[data_absolute])))[0]
+
+        idx_rg = np.where(
+                (self.df[data_absolute] < self.mist_iso.sg_spline(
+                        self.mist_iso.color_intersect)) &
+                (self.df[data_color] >
+                        self.mist_iso.rg_spline(self.df[data_absolute])))[0]
+
+        idx_ms = np.where(
+                ((self.df[data_absolute] > self.mist_iso.sg_spline(
+                        self.mist_iso.color_intersect)) |
+                 (self.df[data_color] < self.mist_iso.rg_spline(
+                        self.df[data_aboslute]))))[0]
+
+        return idx_ms, idx_sg, idx_rg
+
+    def _identify_components_eep(self):
+        
+        mag0_column = self.phot_system.mist_mag
+        mag1_column = self.phot_system.mist_color0
+        mag1_column = self.phot_system.mist_color1
+
+        data_absolute = self.phot_system.absolute_mag
+        data_color = self.phot_system.color_corrected
+
+        idx_sg = np.where(
+                (self.df[data_absolute] < self.mist_eep.sg_spline(
+                        self.df[data_color])) &
+                (self.df[data_absolute] > self.mist_eep.rg_spline(
+                        self.df[data_color])) &
+                (self.df[data_absolute] < self.mist_eep.sg_spline(
+                        self.mist_eep.color_intersect)))[0]
+
+        idx_rg = np.where(
+                (self.df[data_absolute] < self.mist_eep.rg_spline(
+                        self.df[data_color])) &
+                (self.df[data_absolute] < self.mist_eep.sg_spline(
+                        self.mist_eep.color_intersect)))[0]
+
+        idx_ms = np.where(
+                (self.df[data_absolute] > self.mist_eep.sg_spline(
+                        self.df[data_color])) |
+                (self.df[data_absolute] > self.mist_eep.sg_spline(
+                        self.mist_eep.color_intersect)))[0]
+
+        return idx_ms, idx_sg, idx_rg
+
+    def identify_components(self, method='eep', outtable=None):
+        
+
+        if method == 'iso':
+            if self.mist_iso is None:
+                raise ValueError('no mist iso model defined')
+            idx_ms, idx_sg, idx_rg = self._identify_components_iso()
+        elif method == 'eep':
+            if self.mist_eep is None:
+                raise ValueError('no mist eep model defined')
+            idx_ms, idx_sg, idx_rg = self._identify_components_eep()
+        else:
+            raise ValueError(f'invalid method {method}')
+
+
+        
+        idx_none = np.setdiff1d(
+                self.df.index.to_numpy(),
+                np.concatenate([idx_ms, idx_sg, idx_rg]))
+
+        state = np.zeros(len(self.df), dtype='object')
+        state[idx_ms] = 'ms'
+        state[idx_sg] = 'sg'
+        state[idx_rg] = 'rg'
+        state[idx_none] = 'other'
+
+        self.df['state'] = state
+
+        if outtable is not None:
+            self.df[['id', 'state']].to_csv(outtable, index=False)
+
+        if 'id' in self.df.columns:
+            return self.df[['id', 'state']]
+        else:
+            return self.df

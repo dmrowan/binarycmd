@@ -60,3 +60,34 @@ def manager_list_wrapper_silent(func, L, *args, **kwargs):
     return return_vals
 
 
+#Binary search method for nonlinear equations
+def binary_search(f, x1, x2, epsilon=1e-6, plot=False, ax=None):
+    #Check if we can solve for a root in this interval
+    if f(x1)*f(x2) > 0:
+        return float('NaN')
+    xp = .5*(x1+x2) #calculate x prime
+    xvals = [xp] #save values as we iterate
+
+    counter = 0
+    #Loop until we reach precision (or stumble onto value)
+    while (f(xp)!=0) and (abs(x1-x2)>epsilon):
+        #Redefine our bracket
+        if f(x1)*f(xp) < 0:
+            x2 = xp
+        else:
+            x1 = xp
+        xp = .5*(x1+x2)
+        xvals.append(xp)
+
+    #Option to plot
+    if plot:
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+            ax = plotutils.plotparams(ax)
+        ax.plot(xvals, color='xkcd:azure', label='Binary Search')
+
+    #Returned solved value and plot
+    if plot and ax is not None:
+        return xp, ax
+    else:
+        return xp

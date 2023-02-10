@@ -3,10 +3,12 @@
 from collections import namedtuple
 import multiprocessing as mp
 import numpy as np
+import os
 import pandas as pd
 from scipy.interpolate import interp1d
 
 from . import read_mist_models
+from . import cmdutils
 
 #Dom Rowan 2023
 
@@ -71,8 +73,8 @@ def mist_iso(path, phot_system):
                               mag0_rg_turnoff)
 
         if (rg_turnoff_vals[i][1] == df_binary[(df_binary.phase==2) &
-            (df_binary.color > filter_system.rg_turnoff_limit)][
-                    filter_system.mist_mag].iloc[0]):
+            (df_binary.color > phot_system.rg_turnoff_limit)][
+                    phot_system.mist_mag].iloc[0]):
             rg_turnoff_vals[i] = (-99,-99)
         else:
             #define the sg phase  == 1
@@ -124,7 +126,7 @@ def mist_eep(eep_dir, phot_system, iso_path=None, iso_result=None,
     L = manager.list()
     
     [pool.apply_async(
-            asassnutils.manager_list_wrapper_silent,
+            cmdutils.manager_list_wrapper_silent,
             args=(eep_worker, L, eep_files[i], eep_files[i]+'.cmd',phot_system, n,),
             kwds=dict(mode=mode))
      for i in range(len(eep_files)) if (
@@ -150,19 +152,19 @@ def mist_eep(eep_dir, phot_system, iso_path=None, iso_result=None,
                      kind='linear', fill_value='extrapolate')
 
     #Find the point where sg_spline and rg_spline intersect
-    x_intersect = analytic_solvers.binary_search(
+    x_intersect = cmdutils.binary_search(
             lambda color: rg_spline(color) - sg_spline(color),
-            *search_range, epsilon=1e-4, plot=False)
+            *phot_system.search_range, epsilon=1e-4, plot=False)
 
     if np.isnan(x_intersect) or sg_spline(x_intersect) > phot_system.termination_value:
-        x_intersect = analytic_solvers.binary_search(
+        x_intersect = cmdutils.binary_search(
                 lambda color: sg_spline(color) - phot_system.termination_value,
-                *search_range, epsilon=1e-4, plot=False)
+                *phot_system.search_range, epsilon=1e-4, plot=False)
 
 
     return mist_eep_results(df, sg_spline, rg_spline, x_intersect)
 
-def eep_worker(eep, eep_cmd, phot_system, n, mode='zams'):
+def eep_worker(eep, eepcmd, phot_system, n, mode='zams'):
 
     if isinstance(eep, str):
         eep = read_mist_models.EEP(eep, verbose=False)
@@ -210,7 +212,7 @@ def eep_worker(eep, eep_cmd, phot_system, n, mode='zams'):
 
     out = {phot_system.mist_mag: df[phot_system.mist_mag+'_binary'].iloc[idx_end_sg],
            'color': (df[phot_system.mist_color0+'_binary'] - df[phot_system.mist_color1+'_binary']).iloc[idx_end_sg],
-           'minit':minit}
+           'minit':eep.minit}
 
     return out
 

@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 
 from astropy import log
+import cmasher as cmr
 import matplotlib.pyplot as plt
-from matplotib import rc
+from matplotlib import rc
 import numpy as np
 import os
 import pandas as pd
 
-from . import photsys
-from .binary_mist_models import *
-from . import plotutils
-from . import cmdutils
+import photsys
+from binary_mist_models import *
+import plotutils
+import cmdutils
 data_path = os.environ.get('BINARYCMD_DIR', None)
 
 if data_path is None:
@@ -38,16 +39,16 @@ class CMD:
         if self.created_fig:
             self.fig.subplots_adjust(top=.98, right=.98)
 
-        if not asassnutils.check_iter(self.ax):
+        if not cmdutils.check_iter(self.ax):
             self.ax = [self.ax]
 
         for a in self.ax: a = plotutils.plotparams(a, labelsize=20)
 
-        self.set_xlim(*self.filter_system.plt_range[0])
-        self.set_ylim(*self.filter_system.plt_range[1])
+        self.set_xlim(*self.phot_system.plt_range[0])
+        self.set_ylim(*self.phot_system.plt_range[1])
 
-        self.set_xlabel(self.filter_system.xlabel)
-        self.set_ylabel(self.filter_system.ylabel)
+        self.set_xlabel(self.phot_system.xlabel)
+        self.set_ylabel(self.phot_system.ylabel)
 
         self.mist_iso_path = os.path.join(data_path, 'MIST_iso_61ddebc974204.iso.cmd')
         self._load_mist_iso(self.mist_iso_path)
@@ -91,7 +92,7 @@ class CMD:
             
             self.df[self.phot_system.color_corrected ] = (
                     self.df[self.phot_system.color] - ( self.df[self.phot_system.mwdust_c0] - 
-                                                        self.df[self.phot_system.mwdust_c1])
+                                                        self.df[self.phot_system.mwdust_c1]) )
 
         if self.phot_system.absolute_mag not in self.df.columns:
             
@@ -105,7 +106,7 @@ class CMD:
         if drop_na:
             self.df = self.df.dropna(subset=subset).reset_index(drop=True)
 
-    def apply_quality_cuts(self, avcutoff=2.0, rplx=10):
+    def apply_quality_cuts(self, ext_cut=2.0, rplx_cut=10, ext_column='mwdust_av'):
         
         if 'parallax_over_error' in self.df.columns:
             parallax_over_error_column = 'parallax_over_error'
@@ -114,10 +115,13 @@ class CMD:
         else:
             raise ValueError("no parallax_over_error column in catalog")
 
+        if ext_column not in self.df.columns:
+            raise ValueError(f'ext_column {ext_column} not found in CMD.df.columns')
+
 
         idx_filter = np.where(
-                (self.df[parallax_over_error_column] > rplx) &
-                (self.df.mwdust_av < avcutoff))[0]
+                (self.df[parallax_over_error_column] > rplx_cut) &
+                (self.df[ext_column] < ext_cut))[0]
 
         self.df = self.df.iloc[idx_filter].reset_index(drop=True)
 
@@ -137,13 +141,13 @@ class CMD:
         plot_kwargs.setdefault('alpha', 0.4)
         plot_kwargs.setdefault('s', 80)
 
-        if not asassnutils.check_iter(color_column):
+        if not cmdutils.check_iter(color_column):
             color_column = [color_column]*len(self.ax)
 
-        if not asassnutils.check_iter(cbar_label):
+        if not cmdutils.check_iter(cbar_label):
             cbar_label = [cbar_label]*len(self.ax)
 
-        if not asassnutils.check_iter(cmap):
+        if not cmdutils.check_iter(cmap):
             cmap = [cmap]*len(self.ax)
         elif isinstance(cmap, dict):
             cmap = [cmap]*len(self.ax)
@@ -232,7 +236,7 @@ class CMD:
             raise ValueError(f'Column {column} not in CMD.df.columns')
 
         plot_kwargs.setdefault('marker', 'o')
-        plot_kwargs.setdefault('color', plotutils.colors[0])
+        plot_kwargs.setdefault('color', 'xkcd:red')
         plot_kwargs.setdefault('edgecolor', 'none')
         plot_kwargs.setdefault('alpha', 0.8)
 
@@ -256,7 +260,7 @@ class CMD:
             plot_kwargs = {}
 
         plot_kwargs.setdefault('gridsize', (400, 200))
-        plot_kwarga.setdefault('vmin', 10)
+        plot_kwargs.setdefault('vmin', 10)
         plot_kwargs.setdefault('vmax', 1000)
         plot_kwargs.setdefault('cmap', 'Greys')
         plot_kwargs.setdefault('bins', 'log')
@@ -285,7 +289,7 @@ class CMD:
             colors = ['black', 'black', 'black']
             phase_labels=['_nolegend_']*3
         else:
-            colors = ['black', ebutils.colors()[0], ebutils.colors()[2]]
+            colors = ['black', plotutils.colors[0], plotutils.colors[2]]
             phase_labels = ['Main Sequence', 'Subgiant Branch', 'Giant Branch']
 
         for i in range(len(self.mist_iso.ages)):
@@ -367,7 +371,7 @@ class CMD:
         if np.abs(termination_val-self.mist_eep.rg_spline(
                 self.mist_eep.color_intersect)) > 1e-4:
             #need to identify bp_rp rg termination
-            rg_termination = analytic_solvers.binary_search(
+            rg_termination = cmdutils.binary_search(
                     lambda x: self.mist_eep.rg_spline(x)-termination_val,
                     0.5, 2.5, epsilon=1e-4, plot=False)
             rg_xvals = np.linspace(self.mist_eep.rg_spline.x[0],
@@ -427,13 +431,13 @@ class CMD:
         isocmd = read_mist_models.ISOCMD(self.mist_iso_path)
 
         age_idx = isocmd.age_index(8.0)
-        mag0 = isocmd.isocmds[age_idx][self.phot_system.mist_mag0]
+        mag0 = isocmd.isocmds[age_idx][self.phot_system.mist_mag]
         mag1 = isocmd.isocmds[age_idx][self.phot_system.mist_color0]
         mag2 = isocmd.isocmds[age_idx][self.phot_system.mist_color1]
 
         phase = isocmd.isocmds[age_idx]['phase']
 
-        df = pd.DataFrame({mag0_column:mag0, 'color':mag1-mag2, 'phase':phase})
+        df = pd.DataFrame({'mag':mag0, 'color':mag1-mag2, 'phase':phase})
         df = df[df.phase == 0].reset_index(drop=True)
 
         if plot_kwargs is None:
@@ -445,7 +449,7 @@ class CMD:
         plot_kwargs.setdefault('label', 'Single Star Isochrone')
 
         for ax in self.ax:
-            ax.plot(df.color, df[mag0_column], **plot_kwargs)
+            ax.plot(df.color, df.mag, **plot_kwargs)
 
     def _identify_components_iso(self):
 
@@ -472,7 +476,7 @@ class CMD:
                 ((self.df[data_absolute] > self.mist_iso.sg_spline(
                         self.mist_iso.color_intersect)) |
                  (self.df[data_color] < self.mist_iso.rg_spline(
-                        self.df[data_aboslute]))))[0]
+                        self.df[data_absolute]))))[0]
 
         return idx_ms, idx_sg, idx_rg
 

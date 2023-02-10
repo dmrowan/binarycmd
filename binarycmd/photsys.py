@@ -7,6 +7,7 @@ class PhotSystem:
     def __init__(self, mag=None, absolute_mag=None, color=None,
                  color0=None, color1=None,
                  mist_mag=None, mist_color0=None, mist_color1=None,
+                 mwdust_mag=None, mwdust_c0=None, mwdust_c1=None,
                  termination_value=None, rg_turnoff_limit=None,
                  search_range=None,
                  xlabel='Color (mag)', ylabel=r'$M$ (mag)',
@@ -21,6 +22,9 @@ class PhotSystem:
         self.mist_mag = mist_mag
         self.mist_color0 = mist_color0
         self.mist_color1 = mist_color1
+        self.mwdust_mag = mwdust_mag
+        self.mwdust_c0 = mwdust_c0
+        self.mwdust_c1 = mwdust_c1
         self.termination_value = termination_value
         self.rg_turnoff_limit = rg_turnoff_limit
         self.search_range = search_range
@@ -63,6 +67,7 @@ class PhotSystem:
         return cls(mag=mag, absolute_mag=absolute_mag,
                    color=color, mist_mag=mist_mag,
                    mist_color0=mist_color0, mist_color1=mist_color1,
+                   mwdust_mag=mwdust_mag, mwdust_c0=mwdust_c0, mwdust_c1=mwdust_c1,
                    termination_value=termination_value,
                    search_range=search_range,
                    rg_turnoff_limit=rg_turnoff_limit,
@@ -79,6 +84,10 @@ class PhotSystem:
         mist_color0 = 'Gaia_BP_EDR3'
         mist_color1 = 'Gaia_RP_EDR3'
 
+        mwdust_mag = 'mwdust_ag'
+        mwdust_c0 = 'mwdust_abp'
+        mwdust_c1 = 'mwdust_arp'
+
         termination_value = 4.5
         search_range = (1, 1.5)
         rg_turnoff_limit = 0.9
@@ -91,6 +100,7 @@ class PhotSystem:
         return cls(mag=mag, absolute_mag=absolute_mag,
                    color=color, mist_mag=mist_mag,
                    mist_color0=mist_color0, mist_color1=mist_color1,
+                   mwdust_mag=mwdust_mag, mwdust_c0=mwdust_c0, mwdust_c1=mwdust_c1,
                    termination_value=termination_value,
                    rg_turnoff_limit=rg_turnoff_limit,
                    search_range=search_range,
@@ -108,6 +118,10 @@ class PhotSystem:
         mist_color0 = '2MASS_J'
         mist_color1 = '2MASS_Ks'
 
+        mwdust_mag = 'mwdust_ak'
+        mwdust_c0 = 'mwdust_aj'
+        mwdust_c1 = 'mwdust_ak'
+
         termination_value = 3
         search_range=(0.4, 1.2)
         rg_turnoff_limit = 0.4
@@ -120,6 +134,7 @@ class PhotSystem:
         return cls(mag=mag, absolute_mag=absolute_mag,
                    color=color, mist_mag=mist_mag,
                    mist_color0=mist_color0, mist_color1=mist_color1,
+                   mwdust_mag=mwdust_mag, mwdust_c0=mwdust_c0, mwdust_c1=mwdust_c1,
                    termination_value=termination_value,
                    search_range=search_range,
                    rg_turnoff_limit=rg_turnoff_limit,

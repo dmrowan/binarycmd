@@ -8,10 +8,10 @@ import numpy as np
 import os
 import pandas as pd
 
-import photsys
-from binary_mist_models import *
-import plotutils
-import cmdutils
+from . import photsys
+from .binary_mist_models import *
+from . import plotutils
+from . import cmdutils
 data_path = os.environ.get('BINARYCMD_DIR', None)
 
 if data_path is None:

@@ -69,6 +69,14 @@ def fig_init(ax=None, use_plotparams=True, figsize=(12,6),**kwargs):
 
     return fig, ax, created_fig
 
+def has_twin(ax):
+    for other_ax in ax.figure.axes:
+        if other_ax is ax:
+            continue
+        if other_ax.bbox.bounds == ax.bbox.bounds:
+            return True
+    return False
+
 def format_latex_label(label):
 
     return label.replace('_', ' ')

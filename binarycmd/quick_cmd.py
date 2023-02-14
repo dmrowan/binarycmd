@@ -19,7 +19,7 @@ Quick CMD plotter for list of Gaia DR3 sources
 """
 
 def get_data_file(filename):
-    return pkg_resources.resource_filename(__name__, 'data/' + filename)
+    return pkg_resources.resource_filename(__name__, '../data/' + filename)
 
 class Star:
 

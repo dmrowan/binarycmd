@@ -260,8 +260,8 @@ class CMD:
             plot_kwargs = {}
 
         plot_kwargs.setdefault('gridsize', (400, 200))
-        plot_kwargs.setdefault('vmin', 10)
-        plot_kwargs.setdefault('vmax', 1000)
+        plot_kwargs.setdefault('vmin', None)
+        plot_kwargs.setdefault('vmax', None)
         plot_kwargs.setdefault('cmap', 'Greys')
         plot_kwargs.setdefault('bins', 'log')
 

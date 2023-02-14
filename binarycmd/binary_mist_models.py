@@ -124,7 +124,7 @@ def mist_eep(eep_dir, phot_system, iso_path=None, iso_result=None,
     pool = mp.Pool(processes=mp.cpu_count())
     manager = mp.Manager()
     L = manager.list()
-    
+
     [pool.apply_async(
             cmdutils.manager_list_wrapper_silent,
             args=(eep_worker, L, eep_files[i], eep_files[i]+'.cmd',phot_system, n,),

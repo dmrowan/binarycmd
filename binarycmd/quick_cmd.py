@@ -84,6 +84,7 @@ class Star:
 
 def plot(source_list, ax=None, savefig=None,
          plot_kwargs=None, 
+         star_list=None,
          background=get_data_file('random_gaia.csv')):
 
 
@@ -91,7 +92,8 @@ def plot(source_list, ax=None, savefig=None,
 
         source_list = [source_list]
 
-    star_list = [Star(source) for source in source_list]
+    if star_list is None:
+        star_list = [Star(source) for source in source_list]
 
     fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=(8, 10))
     if created_fig:

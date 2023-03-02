@@ -7,11 +7,16 @@ from matplotlib import rc
 import numpy as np
 import os
 import pandas as pd
+from scipy.interpolate import interp1d
+from scipy.optimize import minimize_scalar
+from sklearn.preprocessing import MinMaxScaler
+from tqdm import tqdm
 
 from . import photsys
 from .binary_mist_models import *
 from . import plotutils
 from . import cmdutils
+from . import read_mist_models
 data_path = os.environ.get('BINARYCMD_DIR', None)
 
 if data_path is None:
@@ -546,3 +551,85 @@ class CMD:
             return self.df[['id', 'state']]
         else:
             return self.df
+
+    def select_single_stars(self, outtable=None):
+        
+        '''
+        Isochrone distance method to identify stars more consistent with single-star isochrone than binary star
+        '''
+
+        if 'state' not in self.df.columns:
+            self.identify_components(method='eep')
+
+        isocmd = read_mist_models.ISOCMD(self.mist_iso_path)
+
+        age_idx = isocmd.age_index(8.0)
+        mag0 = isocmd.isocmds[age_idx][self.phot_system.mist_mag]
+        mag1 = isocmd.isocmds[age_idx][self.phot_system.mist_color0]
+        mag2 = isocmd.isocmds[age_idx][self.phot_system.mist_color1]
+
+        mag0_binary = -2.5*np.log10(2*np.power(10, -0.4*mag0))
+        mag1_binary = -2.5*np.log10(2*np.power(10, -0.4*mag1))
+        mag2_binary = -2.5*np.log10(2*np.power(10, -0.4*mag2))
+
+        phase = isocmd.isocmds[age_idx]['phase']
+
+        df = pd.DataFrame({'mag0':mag0, 'color':mag1-mag2, 'phase':phase,
+                           'mag0_binary':mag0_binary, 
+                           'color_binary':mag1_binary-mag2_binary})
+
+        df = df[df.phase == 0].reset_index(drop=True)
+
+        #later -- automatically determine the termination val
+        df=df[df.mag0 > -2].reset_index(drop=True)
+
+        data_single = df[['color', 'mag0']].values
+        data_binary = df[['color_binary', 'mag0_binary']].values
+
+        scaler = MinMaxScaler()
+        data_single_scaled = scaler.fit_transform(data_single)
+        data_binary_scaled = scaler.transform(data_binary)
+
+        spline_single_scaled = interp1d(data_single_scaled[:,1], data_single_scaled[:,0], 
+                                        kind='cubic', fill_value='extrapolate')
+        spline_binary_scaled = interp1d(data_binary_scaled[:,1], data_binary_scaled[:,0], 
+                                        kind='cubic', fill_value='extrapolate')
+
+        sb_intersect = cmdutils.binary_search(
+                lambda x: spline_binary_scaled(x) - spline_single_scaled(x),
+                                              -2, 0, epsilon=1e-4)
+        idx = np.where( (self.df.state == 'ms') &
+                        (self.df[self.phot_system.absolute_mag] > sb_intersect) &
+                        (self.df[self.phot_system.absolute_mag] < df.mag0.max()))[0]
+
+        def dist_func_spline(t, input_spline, x_new, y_new):
+            x_interp = t
+            y_interp = input_spline(t)
+            return np.sqrt((x_interp - x_new)**2 + (y_interp - y_new)**2)
+
+        result = []
+        for i in tqdm(range(len(self.df))):
+            if i not in idx:
+                result.append(False)
+            else:
+            
+                point_scaled = scaler.transform(np.array([self.df[self.phot_system.color_corrected].iloc[i],
+                                                          self.df[self.phot_system.absolute_mag].iloc[i]]).reshape(1, -1))[0]
+
+                
+                rss = minimize_scalar(
+                        dist_func_spline, bounds=(0, 1),
+                        args=(spline_single_scaled, point_scaled[1], point_scaled[0]))
+                rbs = minimize_scalar(
+                        dist_func_spline, bounds=(0, 1),
+                        args=(spline_binary_scaled, point_scaled[1], point_scaled[0]))
+
+                dss = dist_func_spline(rss.x, spline_single_scaled,
+                                       point_scaled[1], point_scaled[0])
+                dbs = dist_func_spline(rbs.x, spline_binary_scaled,
+                                       point_scaled[1], point_scaled[0])
+
+                result.append(dss <= dbs)
+        
+        return result
+            

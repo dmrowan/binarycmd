@@ -428,6 +428,7 @@ class CMD:
                               fontsize=20, loc='lower left')
 
     def plot_single_star_isochrone(self, path=None,
+                                   vshift=0, redshift=0,
                                    plot_kwargs=None):
         
         if path is not None:
@@ -444,6 +445,9 @@ class CMD:
 
         df = pd.DataFrame({'mag':mag0, 'color':mag1-mag2, 'phase':phase})
         df = df[df.phase == 0].reset_index(drop=True)
+
+        df['mag'] = df.mag + vshift
+        df['color'] = df.color + redshift
 
         if plot_kwargs is None:
             plot_kwargs = {}

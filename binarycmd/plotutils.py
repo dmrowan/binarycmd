@@ -80,3 +80,16 @@ def has_twin(ax):
 def format_latex_label(label):
 
     return label.replace('_', ' ')
+
+def get_colors(vals, cmap='plasma'):
+    
+    if isinstance(plt.get_cmap(cmap), matplotlib.colors.ListedColormap):
+        return [ plt.get_cmap(cmap).colors[i]
+                 for i in np.linspace(
+                        0, int(0.75*len(plt.get_cmap(cmap).colors)),
+                        len(vals), dtype=int)]
+    elif isinstance(plt.get_cmap(cmap), matplotlib.colors.LinearSegmentedColormap):
+        return [ plt.get_cmap(cmap)(np.arange(0, plt.get_cmap(cmap).N))[i]
+                 for i in np.linspace(
+                        0, int(0.75*plt.get_cmap(cmap).N),
+                        len(vals), dtype=int)]

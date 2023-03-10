@@ -4,6 +4,7 @@ from astropy import log
 import cmasher as cmr
 import matplotlib.pyplot as plt
 from matplotlib import rc
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import os
 import pandas as pd
@@ -584,8 +585,14 @@ class CMD:
 
         df = df[df.phase == 0].reset_index(drop=True)
 
-        #later -- automatically determine the termination val
-        df=df[df.mag0 > -2].reset_index(drop=True)
+
+        mag_limit = None
+        for i in range(len(df)-1):
+            if df.mag0.iloc[i+1] > df.mag0.iloc[i]:
+                mag_limit = df.mag0.iloc[i]
+                break
+        if mag_limit is not None:
+            df=df[df.mag0 > mag_limit].reset_index(drop=True)
 
         data_single = df[['color', 'mag0']].values
         data_binary = df[['color_binary', 'mag0_binary']].values
@@ -595,16 +602,21 @@ class CMD:
         data_binary_scaled = scaler.transform(data_binary)
 
         spline_single_scaled = interp1d(data_single_scaled[:,1], data_single_scaled[:,0], 
-                                        kind='cubic', fill_value='extrapolate')
+                                        kind='linear', fill_value='extrapolate')
         spline_binary_scaled = interp1d(data_binary_scaled[:,1], data_binary_scaled[:,0], 
-                                        kind='cubic', fill_value='extrapolate')
+                                        kind='linear', fill_value='extrapolate')
 
         sb_intersect = cmdutils.binary_search(
                 lambda x: spline_binary_scaled(x) - spline_single_scaled(x),
-                                              -2, 0, epsilon=1e-4)
+                scaler.transform(np.array([0, mag_limit]).reshape(1, -1))[0][1],
+                scaler.transform(np.array([0, 0]).reshape(1, -1))[0][1], epsilon=1e-4)
+
+
+        #inverse transform of the sb_intersect
+        sb_intersect = scaler.inverse_transform(np.array([[0, sb_intersect]]))[0][1]
+
         idx = np.where( (self.df.state == 'ms') &
-                        (self.df[self.phot_system.absolute_mag] > sb_intersect) &
-                        (self.df[self.phot_system.absolute_mag] < df.mag0.max()))[0]
+                        (self.df[self.phot_system.absolute_mag] > sb_intersect))[0]
 
         def dist_func_spline(t, input_spline, x_new, y_new):
             x_interp = t
@@ -617,9 +629,9 @@ class CMD:
                 result.append(False)
             else:
             
-                point_scaled = scaler.transform(np.array([self.df[self.phot_system.color_corrected].iloc[i],
-                                                          self.df[self.phot_system.absolute_mag].iloc[i]]).reshape(1, -1))[0]
-
+                point_scaled = scaler.transform(np.array([
+                        self.df[self.phot_system.color_corrected].iloc[i],
+                        self.df[self.phot_system.absolute_mag].iloc[i]]).reshape(1, -1))[0]
                 
                 rss = minimize_scalar(
                         dist_func_spline, bounds=(0, 1),

@@ -461,6 +461,8 @@ class CMD:
         for ax in self.ax:
             ax.plot(df.color, df.mag, **plot_kwargs)
 
+        return df
+
     def _identify_components_iso(self):
 
         mag0_column = self.phot_system.mist_mag
@@ -557,7 +559,7 @@ class CMD:
         else:
             return self.df
 
-    def select_single_stars(self, outtable=None):
+    def select_single_stars(self, outtable=None, mag_range=None):
         
         '''
         Isochrone distance method to identify stars more consistent with single-star isochrone than binary star
@@ -617,6 +619,17 @@ class CMD:
 
         idx = np.where( (self.df.state == 'ms') &
                         (self.df[self.phot_system.absolute_mag] > sb_intersect))[0]
+
+        if mag_range is not None:
+            
+            if len(mag_range) != 2:
+                raise ValueError('optional mag range parameter must have length 2')
+            
+            idx_mag_range = np.where( 
+                    (self.df[self.phot_system.absolute_mag] > np.min(mag_range)) &
+                    (self.df[self.phot_system.absolute_mag] < np.max(mag_range)) )[0]
+
+            idx = np.intersect1d(idx, idx_mag_range)
 
         def dist_func_spline(t, input_spline, x_new, y_new):
             x_interp = t

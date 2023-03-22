@@ -78,8 +78,12 @@ class Star:
 
     def calculate_color_mags(self):
 
-        self.absolute_g = self.Gmag - 5*np.log10(self.rpgeo)+5 - self.AG
-        self.bp_rp_corrected = self.BP_RP - self.E_BP_RP_
+        if np.isnan(self.AG) or np.isnan(self.E_BP_RP):
+            self.absolute_g = self.Gmag - 5*np.log10(self.rpgeo)+5
+            self.bp_rp_corrected = self.BP_RP
+        else:
+            self.absolute_g = self.Gmag - 5*np.log10(self.rpgeo)+5 - self.AG
+            self.bp_rp_corrected = self.BP_RP - self.E_BP_RP_
 
 
 def plot(source_list, ax=None, savefig=None,

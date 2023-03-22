@@ -343,7 +343,7 @@ class CMD:
                               fontsize=20, loc='lower left')
 
     def plot_mist_eep(self, eep_dir=None, iso_fname=None,
-                      legend=True, simple_color=False,
+                      legend=True, simple_color=False, plot_divisions=True,
                       mode='tams', n=1.5, plot_kwargs=None):
 
         if iso_fname is not None:
@@ -360,7 +360,7 @@ class CMD:
 
         if simple_color:
             colors = ['black', 'black', 'black']
-            phase_labels=['_nolegend_']*3
+            phase_labels=['Binary Isochrone', '_nolegend_', '_nolegend_']
         else:
             colors = ['black', plotutils.colors[0], plotutils.colors[2]]
             phase_labels = ['Main Sequence', 'Subgiant Branch', 'Giant Branch']
@@ -414,15 +414,16 @@ class CMD:
 
                     phase_labels = ['_nolegend_']*3
 
-        for ax in self.ax:
-            ax.plot(sg_xvals, self.mist_eep.sg_spline(sg_xvals),
-                    color=colors[1], ls='--', **plot_kwargs)
-            ax.plot(rg_xvals, self.mist_eep.rg_spline(rg_xvals),
-                    color=colors[1], ls='--', **plot_kwargs)
-            ax.plot([self.mist_eep.color_intersect, ax.get_xlim()[1]],
-                    [self.mist_eep.sg_spline(
-                            self.mist_eep.color_intersect)]*2,
-                    color=colors[2], ls='--', **plot_kwargs)
+        if plot_divisions:
+            for ax in self.ax:
+                ax.plot(sg_xvals, self.mist_eep.sg_spline(sg_xvals),
+                        color=colors[1], ls='--', **plot_kwargs)
+                ax.plot(rg_xvals, self.mist_eep.rg_spline(rg_xvals),
+                        color=colors[1], ls='--', **plot_kwargs)
+                ax.plot([self.mist_eep.color_intersect, ax.get_xlim()[1]],
+                        [self.mist_eep.sg_spline(
+                                self.mist_eep.color_intersect)]*2,
+                        color=colors[2], ls='--', **plot_kwargs)
 
         if legend:
             self.ax[0].legend(edgecolor='black',

@@ -78,7 +78,7 @@ class Star:
 
     def calculate_color_mags(self):
 
-        if np.isnan(self.AG) or np.isnan(self.E_BP_RP):
+        if np.isnan(self.AG) or np.isnan(self.E_BP_RP_):
             self.absolute_g = self.Gmag - 5*np.log10(self.rpgeo)+5
             self.bp_rp_corrected = self.BP_RP
         else:
@@ -89,15 +89,15 @@ class Star:
 def plot(source_list, ax=None, savefig=None,
          plot_kwargs=None, 
          star_list=None,
+         mwdust_ext=False,
          background=get_data_file('random_gaia.csv')):
-
 
     if not cmdutils.check_iter(source_list):
 
         source_list = [source_list]
 
     if star_list is None:
-        star_list = [Star(source) for source in source_list]
+        star_list = [Star(source, mwdust_ext=mwdust_ext) for source in source_list]
 
     fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=(8, 10))
     if created_fig:

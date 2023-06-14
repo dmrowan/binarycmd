@@ -8,6 +8,8 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from . import cmdutils
+
 log.info('loading in combined19')
 combined= mwdust.Combined19(filter='CTIO V')
 log.info('loading in combined19 (2mass H)')
@@ -26,9 +28,9 @@ l and b columns are deg, and distance column is in pc
 """
 
 def add_mwdust(input_catalog, l_column='l', b_column='b',
-               distance_column='rpgeo'):
+               distance_column='rpgeo', use_mp=False):
 
-    catalog = asassnutils.pd_read(input_catalog)
+    catalog = cmdutils.pd_read(input_catalog)
 
     if 'id' not in catalog.columns:
         catalog['id'] = np.arange(len(catalog))
@@ -46,19 +48,25 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     ag_arr = np.full(len(catalog), np.nan)
     e_bp_rp_arr = np.full(len(catalog), np.nan)
 
-    pool = mp.Pool(processes=mp.cpu_count())
-    manager = mp.Manager()
+    if use_mp:
+        pool = mp.Pool(processes=mp.cpu_count())
+        manager = mp.Manager()
 
-    L = manager.list()
+        L = manager.list()
 
-    [pool.apply_async(cmdutils.manager_list_wrapper,
-            args=(evaluate_map, L,
-                  catalog.id.iloc[i],catalog[l_column].iloc[i],
-                  catalog[b_column].iloc[i], catalog[distance_column].iloc[i],))
-     for i in range(len(catalog))]
+        [pool.apply_async(cmdutils.manager_list_wrapper,
+                args=(evaluate_map, L,
+                      catalog.id.iloc[i],catalog[l_column].iloc[i],
+                      catalog[b_column].iloc[i], catalog[distance_column].iloc[i],))
+         for i in range(len(catalog))]
 
-    pool.close()
-    pool.join()
+        pool.close()
+        pool.join()
+    else:
+        L = [ evaluate_map(catalog.id.iloc[i], catalog[l_column].iloc[i],
+                           catalog[b_column].iloc[i], catalog[distance_column].iloc[i])
+              for i in tqdm(range(len(catalog))) ]
+        
 
     df_mwdust = pd.DataFrame(list(L))
     df_mwdust.columns = ['id', 'mwdust_av',

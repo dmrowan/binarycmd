@@ -108,6 +108,7 @@ def plot(source_list, ax=None, savefig=None,
 
     plot_kwargs.setdefault('color', 'xkcd:red')
     plot_kwargs.setdefault('marker', 'o')
+    plot_kwargs.setdefault('s', 150)
     plot_kwargs.setdefault('edgecolor', 'black')
     plot_kwargs.setdefault('alpha', 0.8)
 
@@ -141,12 +142,12 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=desc)
 
     parser.add_argument('--source', nargs='+', help='Gaia DR3 Source', default=None)
-    parser.add_argument('--background', default='/home/rowan.90/EBs/random_gaia.csv', type=str)
+    parser.add_argument('--background', default=get_data_file('random_gaia.csv'), type=str)
     parser.add_argument('--savefig', defaut=None)
 
     args = parser.parse_args()
 
     if args.source is not None:
-        main(args.source, background=args.background, savefig=args.savefig)
+        plot(args.source, background=args.background, savefig=args.savefig)
 
 

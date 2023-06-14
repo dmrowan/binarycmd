@@ -199,6 +199,8 @@ class CMD:
 
             if color_column[i] is not None:
                 if continuous_color[i]:
+                    fontsize = cbar_kwargs.pop('fontsize', 30)
+                    print(fontsize)
                     cax = make_axes_locatable(self.ax[i]).append_axes(
                             'right', size='5%', pad=0.05)
                     cbar = plt.colorbar(sc, cax, orientation='vertical',
@@ -207,7 +209,7 @@ class CMD:
                     if cbar_label[i] is None:
                         cbar_label[i] = plotutils.format_latex_label(
                                 color_column[i])
-                    cbar.set_label(cbar_label[i], fontsize=30)
+                    cbar.set_label(cbar_label[i], fontsize=fontsize)
                     cbar.set_alpha(1)
                     cbar.solids.set(alpha=1)
                 else:

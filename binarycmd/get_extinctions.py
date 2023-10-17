@@ -49,6 +49,7 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     e_bp_rp_arr = np.full(len(catalog), np.nan)
 
     if use_mp:
+
         pool = mp.Pool(processes=mp.cpu_count())
         manager = mp.Manager()
 

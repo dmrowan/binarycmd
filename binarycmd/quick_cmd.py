@@ -89,7 +89,7 @@ class Star:
 def plot(source_list, ax=None, savefig=None,
          plot_kwargs=None, 
          star_list=None,
-         mwdust_ext=False,
+         mwdust_ext=False,xlim=None, ylim=None,
          background=get_data_file('random_gaia.csv')):
 
     if not cmdutils.check_iter(source_list):
@@ -112,8 +112,12 @@ def plot(source_list, ax=None, savefig=None,
     plot_kwargs.setdefault('edgecolor', 'black')
     plot_kwargs.setdefault('alpha', 0.8)
 
-    ax.set_xlim(-0.6, 2.4)
-    ax.set_ylim(-4.1, 8.5)
+    if xlim is None:
+        xlim = (-0.6, 2.4)
+    if ylim is None:
+        ylim = (-4.1, 8.5)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
     ax.invert_yaxis()
 
     xlabel = r'$G_{\rm{BP}}-G_{\rm{RP}}$ (mag)'

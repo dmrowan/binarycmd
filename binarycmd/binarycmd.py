@@ -200,7 +200,6 @@ class CMD:
             if color_column[i] is not None:
                 if continuous_color[i]:
                     fontsize = cbar_kwargs.pop('fontsize', 30)
-                    print(fontsize)
                     cax = make_axes_locatable(self.ax[i]).append_axes(
                             'right', size='5%', pad=0.05)
                     cbar = plt.colorbar(sc, cax, orientation='vertical',
@@ -432,18 +431,22 @@ class CMD:
                               fontsize=20, loc='lower left')
 
     def plot_single_star_isochrone(self, path=None,
-                                   vshift=0, redshift=0,
-                                   plot_kwargs=None):
+                                   vshift=0, mf=1, redshift=0,
+                                   plot_kwargs=None, age_idx=8.0):
         
         if path is not None:
             self.mist_iso_path = path
 
         isocmd = read_mist_models.ISOCMD(self.mist_iso_path)
 
-        age_idx = isocmd.age_index(8.0)
+        age_idx = isocmd.age_index(age_idx)
         mag0 = isocmd.isocmds[age_idx][self.phot_system.mist_mag]
         mag1 = isocmd.isocmds[age_idx][self.phot_system.mist_color0]
         mag2 = isocmd.isocmds[age_idx][self.phot_system.mist_color1]
+
+        mag0 = -2.5*np.log10(mf*np.power(10, -0.4*mag0))
+        mag1 = -2.5*np.log10(mf*np.power(10, -0.4*mag1))
+        mag2 = -2.5*np.log10(mf*np.power(10, -0.4*mag2))
 
         phase = isocmd.isocmds[age_idx]['phase']
 

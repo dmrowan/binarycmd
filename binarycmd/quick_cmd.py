@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
 import pandas as pd
+from tqdm.autonotebook import tqdm
 
 from .binarycmd import CMD
 from . import cmdutils
@@ -99,7 +100,11 @@ def plot(source_list, ax=None, savefig=None,
 
     if star_list is None:
         star_list = []
-        for source in source_list:
+        if len(source_list) > 10:
+            iterator = tqdm(source_list)
+        else:
+            iterator = source_list
+        for source in iterator:
             try:
                 star = Star(source, mwdust_ext=mwdust_ext)
                 star_list.append(star)

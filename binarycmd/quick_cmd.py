@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pkg_resources
 import pandas as pd
+from tqdm.autonotebook import tqdm
 
 from .binarycmd import CMD
 from . import cmdutils
@@ -90,7 +91,9 @@ def plot(source_list, ax=None, savefig=None,
          plot_kwargs=None, 
          star_list=None,
          mwdust_ext=False,xlim=None, ylim=None,
-         background=get_data_file('random_gaia.csv')):
+         background=get_data_file('random_gaia.csv'),
+         hexbin=False,
+         hexbin_kwargs=None):
 
     if not cmdutils.check_iter(source_list):
 
@@ -128,14 +131,20 @@ def plot(source_list, ax=None, savefig=None,
 
     if background is not None:
         df_bkg = cmdutils.pd_read(background)
-        ax.scatter(df_bkg.bp_rp_corrected, df_bkg.absolute_g, color='gray', marker='.',
-                   edgecolor='none', alpha=0.6, rasterized=True)
+        if hexbin:
+            if hexbin_kwargs is None:
+                hexbin_kwargs = {}
+            ax.hexbin(df_bkg.bp_rp_corrected, df_bkg.absolute_g, **hexbin_kwargs)
+        else:
+            ax.scatter(df_bkg.bp_rp_corrected, df_bkg.absolute_g, color='gray', marker='.',
+                       edgecolor='none', alpha=0.6, rasterized=True)
 
     source = [ s.Source for s in star_list ]
     bp_rp = [ s.bp_rp_corrected for s in star_list ]
     absolute_g = [ s.absolute_g for s in star_list ]
 
     df_out = pd.DataFrame({'Source':source, 'bp_rp':bp_rp, 'mg':absolute_g})
+    print(df_out)
 
     ax.scatter(bp_rp, absolute_g, **plot_kwargs)
 

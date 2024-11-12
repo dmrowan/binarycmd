@@ -93,6 +93,7 @@ def plot(source_list, ax=None, savefig=None,
          mwdust_ext=False,xlim=None, ylim=None,
          background=get_data_file('random_gaia.csv'),
          hexbin=False,
+         save_output=None,
          hexbin_kwargs=None):
 
     if not cmdutils.check_iter(source_list):
@@ -100,7 +101,16 @@ def plot(source_list, ax=None, savefig=None,
         source_list = [source_list]
 
     if star_list is None:
-        star_list = [Star(source, mwdust_ext=mwdust_ext) for source in source_list]
+        star_list = []
+        for source in source_list:
+            try:
+                star = Star(source, mwdust_ext=mwdust_ext)
+                star_list.append(star)
+            except:
+                continue
+        #star_list = [Star(source, mwdust_ext=mwdust_ext) for source in source_list]
+        if len(star_list) == 0:
+            print(source_list)
 
     fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=(8, 10))
     if created_fig:
@@ -147,6 +157,9 @@ def plot(source_list, ax=None, savefig=None,
     print(df_out)
 
     ax.scatter(bp_rp, absolute_g, **plot_kwargs)
+
+    if save_output is not None:
+        df_out.to_csv(save_output, index=False)
 
     return plotutils.plt_return(created_fig, fig, ax, savefig)
 

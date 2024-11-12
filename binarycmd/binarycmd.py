@@ -545,15 +545,16 @@ class CMD:
 
 
         
+        """
         idx_none = np.setdiff1d(
                 self.df.index.to_numpy(),
                 np.concatenate([idx_ms, idx_sg, idx_rg]))
+        """
 
-        state = np.zeros(len(self.df), dtype='object')
+        state = np.full(len(self.df), 'other')
         state[idx_ms] = 'ms'
         state[idx_sg] = 'sg'
         state[idx_rg] = 'rg'
-        state[idx_none] = 'other'
 
         self.df['state'] = state
 

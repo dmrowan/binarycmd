@@ -12,12 +12,6 @@ from . import cmdutils
 
 log.info('loading in combined19')
 combined= mwdust.Combined19(filter='CTIO V')
-#log.info('loading in combined19 (2mass H)')
-#combined_2massH = mwdust.Combined19(filter='2MASS H')
-#log.info('loading in combined19 (2mass J)')
-#combined_2massJ = mwdust.Combined19(filter='2MASS J')
-#log.info('loading in combined19 (2mass K)')
-#combined_2massK = mwdust.Combined19(filter='2MASS Ks')
 
 #Dom Rowan 2021
 

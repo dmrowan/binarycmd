@@ -158,7 +158,7 @@ def plot(source_list, ax=None, savefig=None,
     absolute_g = [ s.absolute_g for s in star_list ]
 
     df_out = pd.DataFrame({'Source':source, 'bp_rp':bp_rp, 'mg':absolute_g})
-    print(df_out)
+    #print(df_out)
 
     ax.scatter(bp_rp, absolute_g, **plot_kwargs)
 

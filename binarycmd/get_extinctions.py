@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from . import cmdutils
 
-log.info('loading in combined19')
-combined= mwdust.Combined19(filter='CTIO V')
+dust_maps = {}
+shared_dataset = None
 
 #Dom Rowan 2021
 
@@ -22,10 +22,18 @@ l and b columns are deg, and distance column is in pc
 """
 
 def add_mwdust(input_catalog, l_column='l', b_column='b',
-               distance_column='rpgeo', use_mp=False):
+               distance_column='rpgeo', use_mp=False,
+               twomass=False):
 
     catalog = cmdutils.pd_read(input_catalog)
 
+    load_combined19()
+
+    if twomass:
+        load_2mass_H()
+        load_2mass_J()
+        load_2mass_K()
+        
     if 'id' not in catalog.columns:
         catalog['id'] = np.arange(len(catalog))
         added_id_col = True
@@ -44,22 +52,33 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
 
     if use_mp:
 
-        pool = mp.Pool(processes=mp.cpu_count())
+        pool = mp.Pool(processes=mp.cpu_count(),
+                       initializer=init_pool,
+                       initargs=(dust_maps,))
         manager = mp.Manager()
+
+        progress_bar = tqdm(total=len(catalog))
+
+        def callback(result):
+            progress_bar.update(1)
 
         L = manager.list()
 
-        [pool.apply_async(cmdutils.manager_list_wrapper,
-                args=(evaluate_map, L,
+        [pool.apply(cmdutils.manager_list_wrapper_silent,
+                args=(evaluate_map_mp, L,
                       catalog.id.iloc[i],catalog[l_column].iloc[i],
-                      catalog[b_column].iloc[i], catalog[distance_column].iloc[i],))
+                      catalog[b_column].iloc[i], catalog[distance_column].iloc[i],
+                      twomass),
+                callback=callback)
+                
          for i in range(len(catalog))]
 
         pool.close()
         pool.join()
     else:
         L = [ evaluate_map(catalog.id.iloc[i], catalog[l_column].iloc[i],
-                           catalog[b_column].iloc[i], catalog[distance_column].iloc[i])
+                           catalog[b_column].iloc[i], catalog[distance_column].iloc[i],
+                           twomass=twomass)
               for i in tqdm(range(len(catalog))) ]
         
 
@@ -82,16 +101,93 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     else:
         return catalog
 
-def evaluate_map(id_, l, b, d):
+def evaluate_map(id_, l, b, d, twomass=False):
 
+    if 'combined19' not in dust_maps.keys():
+        load_combined19()
+    
     if not np.isnan(d):
         distance = d/1000
-        return (id_, combined(l, b, distance)[0],
-                np.nan,
-                np.nan,
-                np.nan)
+
+        if twomass:
+            if '2MASSH' not in dust_maps.keys():
+                load_2mass_H()
+                load_2mass_J()
+                load_2mass_K()
+
+            mwdust_ah = dust_maps['2MASSH'](l, b, distance)[0]
+            mwdust_aj = dust_maps['2MASSJ'](l, b, distance)[0]
+            mwdust_ak = dust_maps['2MASSK'](l, b, distance)[0]
+        else:
+            mwdust_ah = np.nan
+            mwdust_aj = np.nan
+            mwdust_ak = np.nan
+
+        return (id_, dust_maps['combined19'](l, b, distance)[0],
+                mwdust_ah,
+                mwdust_aj,
+                mwdust_ak)
     else:
         return id_, np.nan, np.nan, np.nan, np.nan
+
+def evaluate_map_mp(id_, l, b, d, twomass=False):
+    
+    if not np.isnan(d):
+        distance = d/1000
+
+        if twomass:
+            mwdust_ah = shared_dataset['2MASSH'](l, b, distance)[0]
+            mwdust_aj = shared_dataset['2MASSJ'](l, b, distance)[0]
+            mwdust_ak = shared_dataset['2MASSK'](l, b, distance)[0]
+        else:
+            mwdust_ah = np.nan
+            mwdust_aj = np.nan
+            mwdust_ak = np.nan
+
+        return (id_, shared_dataset['combined19'](l, b, distance)[0],
+                mwdust_ah,
+                mwdust_aj,
+                mwdust_ak)
+    else:
+        return id_, np.nan, np.nan, np.nan, np.nan
+
+
+def load_combined19():
+
+    if 'combined19' not in dust_maps.keys():
+        log.info('loading in combined19')
+        combined19 = mwdust.Combined19(filter='CTIO V')
+
+        dust_maps['combined19'] = combined19
+
+def load_2mass_H():
+    
+    if '2MASSH' not in dust_maps.keys():
+        log.info('loading in combined19 2MASS H')
+        combined_2massH = mwdust.Combined19(filter='2MASS H')
+
+        dust_maps['2MASSH'] = combined_2massH
+
+def load_2mass_J():
+
+    if '2MASSJ' not in dust_maps.keys():
+        log.info('loading in combined19 2MASS J')
+        combined_2massJ = mwdust.Combined19(filter='2MASS J')
+
+        dust_maps['2MASSJ'] = combined_2massJ
+
+def load_2mass_K():
+
+    if '2MASSK' not in dust_maps.keys(): 
+        log.info('loading in combined19 2MASS K')
+        combined_2massK = mwdust.Combined19(filter='2MASS Ks')
+
+        dust_maps['2MASSK'] = combined_2massK
+
+def init_pool(dataset):
+    
+    global shared_dataset
+    shared_dataset = dataset
 
 if __name__ == '__main__':
 
@@ -101,7 +197,10 @@ if __name__ == '__main__':
     parser.add_argument('-l', help = 'galactic longitude column name', type=str, default='l')
     parser.add_argument('-b', help = 'galactic latitude column name', type=str, default='b')
     parser.add_argument('-d', help = 'distance column name', type=str, default='rpgeo')
+    parser.add_argument('--twomass', default=False, action='store_true')
+    parser.add_argument('--mp', default=False, action='store_true')
 
     args = parser.parse_args()
 
-    add_mwdust(args.catalog, l_column=args.l, b_column=args.b, distance_column=args.d)
+    add_mwdust(args.catalog, l_column=args.l, b_column=args.b, distance_column=args.d,
+               twomass=args.twomass, use_mp=args.mp)

@@ -44,7 +44,9 @@ class Star:
     def query_gaia(self):
 
         r = Vizier(catalog="I/355/gaiadr3",
-                   columns=['Source', 'Gmag', 'BP-RP', 'RPlx',
+                   columns=['Source', 'Gmag', 
+                            'BPmag', 'RPmag',
+                            'BP-RP', 'RPlx',
                             'AG', 'E(BP-RP)',
                             'RA_ICRS', 'DE_ICRS',
                             'GLON', 'GLAT']).query_constraints(

@@ -26,7 +26,7 @@ def get_data_file(filename):
 
 class Star:
 
-    def __init__(self, Source, mwdust_ext=False, twomass=False):
+    def __init__(self, Source, mwdust_ext=False, twomass=False, wise=False):
 
         self.Source = Source
 
@@ -36,6 +36,9 @@ class Star:
         if twomass:
             self.query_twomass()
 
+        if wise:
+            self.query_wise()
+
         if mwdust_ext:
             self.query_mwdust()
         self.calculate_color_mags()
@@ -44,9 +47,7 @@ class Star:
     def query_gaia(self):
 
         r = Vizier(catalog="I/355/gaiadr3",
-                   columns=['Source', 'Gmag', 
-                            'BPmag', 'RPmag',
-                            'BP-RP', 'RPlx',
+                   columns=['Source', 'Gmag', 'BP-RP', 'RPlx',
                             'AG', 'E(BP-RP)',
                             'RA_ICRS', 'DE_ICRS',
                             'GLON', 'GLAT']).query_constraints(
@@ -81,6 +82,29 @@ class Star:
 
         self.J_K = self.Jmag - self.Kmag
 
+    def query_wise(self):
+        
+        coord = SkyCoord(self.RA_ICRS*u.deg, self.DE_ICRS*u.deg)
+        r = Vizier(catalog="II/328/allwise", 
+                   columns=["AllWISE", "RAJ2000", "DEJ2000",
+                            "W1mag", "W2mag", "+_r"]).query_region(
+                                    coord, radius=5*u.arcsec)[0]
+
+        if len(r) == 0:
+            log.info('No WISE match found')
+        elif len(r) == 1:
+            r = r.to_pandas().iloc[0].to_dict()
+        else:
+            r = r.to_pandas().sort_values(by='_r', ascending=True)
+            r = r.iloc[0].to_dict()
+
+
+        setattr(self, 'wise', r['AllWISE'])
+        for k in ['W1mag', 'W2mag']:
+            setattr(self, k, r[k])
+
+        self.W1_W2 = self.W1mag - self.W2mag
+
 
     def query_dist(self):
 
@@ -97,14 +121,17 @@ class Star:
         from . import get_extinctions
 
         twomass = hasattr(self, 'twomass')
+        wise = hasattr(self, 'wise')
         r = get_extinctions.evaluate_map(
                 self.Source, self.GLON, self.GLAT, self.rpgeo,
-                twomass=twomass)
+                twomass=twomass,wise=wise)
 
         self.mwdust_av = r[1]
         self.mwdust_ah = r[2]
         self.mwdust_aj = r[3]
         self.mwdust_ak = r[4]
+        self.mwdust_aw1 = r[5]
+        self.mwdust_aw2 = r[6]
 
         self.AG = self.mwdust_av*0.789
         self.abp = self.mwdust_av*1.002
@@ -112,6 +139,7 @@ class Star:
         self.E_BP_RP_ = self.abp-self.arp
 
         self.E_J_K = self.mwdust_aj - self.mwdust_ak
+        self.E_W1_W2 = self.mwdust_aw1 - self.mwdust_aw2
 
     @property
     def quality_filter(self):
@@ -131,8 +159,13 @@ class Star:
             self.absolute_k = self.Kmag - 5*np.log10(self.rpgeo)+5 - self.mwdust_ak
             self.j_k_corrected = self.J_K - self.E_J_K
 
+        if hasattr(self, 'wise'):
+            
+            self.absolute_w1 = self.W1mag - 5*np.log10(self.rpgeo)+5 - self.mwdust_aw1
+            self.w1_w2_corrected = self.W1_W2 - self.E_W1_W2
 
-def plot(source_list, twomass=False, 
+
+def plot(source_list, twomass=False, wise=False, 
          ax=None, savefig=None,
          plot_kwargs=None, 
          star_list=None,
@@ -154,7 +187,7 @@ def plot(source_list, twomass=False,
             iterator = source_list
         for source in iterator:
             try:
-                star = Star(source, mwdust_ext=mwdust_ext, twomass=twomass)
+                star = Star(source, mwdust_ext=mwdust_ext, twomass=twomass, wise=wise)
                 star_list.append(star)
             except:
                 continue
@@ -191,6 +224,9 @@ def plot(source_list, twomass=False,
     if twomass:
         xlabel = r'$J - K$ (mag)'
         ylabel = r'$M_K$ (mag)'
+    elif wise:
+        xlabel = r'$W1 - W2$ (mag)'
+        ylabel = r'$M_{W1}$ (mag)'
     else:
         xlabel = r'$G_{\rm{BP}}-G_{\rm{RP}}$ (mag)'
         ylabel = r'$M_G$ (mag)'
@@ -205,6 +241,8 @@ def plot(source_list, twomass=False,
                 hexbin_kwargs = {}
             if twomass:
                 ax.hexbin(df_bkg.j_k_corrected, df_bkg.absolute_k, **hexbin_kwargs)
+            elif wise:
+                ax.hexbin(df_bkg.w1_w2_corrected, df_bkg.absolute_w1, **hexbin_kwargs)
             else:
                 ax.hexbin(df_bkg.bp_rp_corrected, df_bkg.absolute_g, **hexbin_kwargs)
         else:
@@ -213,6 +251,8 @@ def plot(source_list, twomass=False,
                                rasterized=True)
             if twomass:
                 ax.scatter(df_bkg.j_k_corrected, df_bkg.absolute_k, **sbkg_kwargs)
+            elif wise:
+                ax.scatter(df_bkg.w1_w2_corrected, df_bkg.absolute_w1, **sbkg_kwargs)
             else:
                 ax.scatter(df_bkg.bp_rp_corrected, df_bkg.absolute_g, 
                            **sbkg_kwargs)
@@ -224,11 +264,19 @@ def plot(source_list, twomass=False,
 
     if twomass:
         j_k = [ s.j_k_corrected for s in star_list ]
-        absolute_k = [ s.absolute_g for s in star_list ]
+        absolute_k = [ s.absolute_k for s in star_list ]
         df_out['j_k'] = j_k
         df_out['mk'] = absolute_k
 
         ax.scatter(j_k, absolute_k, **plot_kwargs)
+
+    elif wise:
+        w1_w2 = [ s.w1_w2_corrected for s in star_list ]
+        absolute_w1 = [ s.absolute_w1 for s in star_list ]
+        df_out['w1_w2'] = w1_w2
+        df_out['mw1'] = absolute_w1
+
+        ax.scatter(w1_w2, absolute_w1, **plot_kwargs)
     else:
         ax.scatter(bp_rp, absolute_g, **plot_kwargs)
 
@@ -245,11 +293,12 @@ if __name__ == '__main__':
     parser.add_argument('--background', default=get_data_file('random_gaia.csv'), type=str)
     parser.add_argument('--savefig', defaut=None)
     parser.add_argument('--twomass', default=False, action='store_true')
+    parser.add_argument('--wise', default=False, action='store_true')
 
     args = parser.parse_args()
 
     if args.source is not None:
         plot(args.source, background=args.background, savefig=args.savefig,
-             twomass=args.twomass)
+             twomass=args.twomass, wise=args.wise)
 
 

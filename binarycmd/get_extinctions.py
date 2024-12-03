@@ -23,7 +23,7 @@ l and b columns are deg, and distance column is in pc
 
 def add_mwdust(input_catalog, l_column='l', b_column='b',
                distance_column='rpgeo', use_mp=False,
-               twomass=False):
+               twomass=False, wise=False):
 
     catalog = cmdutils.pd_read(input_catalog)
 
@@ -33,6 +33,10 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
         load_2mass_H()
         load_2mass_J()
         load_2mass_K()
+
+    if wise:
+        load_wise_W1()
+        load_wise_W2()
         
     if 'id' not in catalog.columns:
         catalog['id'] = np.arange(len(catalog))
@@ -43,7 +47,8 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     catalog['id'] = catalog.id.astype(str)
 
     for out_col in ['mwdust_av', 'mwdust_ag', 'mwdust_abp', 'mwdust_arp',
-                    'mwdust_ah', 'mwdust_aj', 'mwdust_ak']:
+                    'mwdust_ah', 'mwdust_aj', 'mwdust_ak',
+                    'mwdust_aw1', 'mwdust_aw2']:
         if out_col in catalog.columns:
             raise ValueError("output column already exists in input catalog")
 
@@ -68,7 +73,7 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
                 args=(evaluate_map_mp, L,
                       catalog.id.iloc[i],catalog[l_column].iloc[i],
                       catalog[b_column].iloc[i], catalog[distance_column].iloc[i],
-                      twomass),
+                      twomass,wise),
                 callback=callback)
                 
          for i in range(len(catalog))]
@@ -78,13 +83,14 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     else:
         L = [ evaluate_map(catalog.id.iloc[i], catalog[l_column].iloc[i],
                            catalog[b_column].iloc[i], catalog[distance_column].iloc[i],
-                           twomass=twomass)
+                           twomass=twomass,wise=wise)
               for i in tqdm(range(len(catalog))) ]
         
 
     df_mwdust = pd.DataFrame(list(L))
     df_mwdust.columns = ['id', 'mwdust_av',
-                         'mwdust_ah', 'mwdust_aj', 'mwdust_ak']
+                         'mwdust_ah', 'mwdust_aj', 'mwdust_ak',
+                         'mwdust_aw1', 'mwdust_aw2']
 
     df_mwdust['id'] = df_mwdust.id.astype(str)
 
@@ -101,7 +107,7 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
     else:
         return catalog
 
-def evaluate_map(id_, l, b, d, twomass=False):
+def evaluate_map(id_, l, b, d, twomass=False, wise=False):
 
     if 'combined19' not in dust_maps.keys():
         load_combined19()
@@ -123,14 +129,27 @@ def evaluate_map(id_, l, b, d, twomass=False):
             mwdust_aj = np.nan
             mwdust_ak = np.nan
 
+        if wise:
+            if 'WISE-1' not in dust_maps.keys():
+                load_wise_W1()
+                load_wise_W2()
+
+            mwdust_w1=dust_maps['WISE-1'](l, b, distance)[0]
+            mwdust_w2=dust_maps['WISE-2'](l, b, distance)[0]
+        else:
+            mwdust_w1=np.nan
+            mwdust_w2=np.nan
+
         return (id_, dust_maps['combined19'](l, b, distance)[0],
                 mwdust_ah,
                 mwdust_aj,
-                mwdust_ak)
+                mwdust_ak,
+                mwdust_w1,
+                mwdust_w2)
     else:
-        return id_, np.nan, np.nan, np.nan, np.nan
+        return id_, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
-def evaluate_map_mp(id_, l, b, d, twomass=False):
+def evaluate_map_mp(id_, l, b, d, twomass=False, wise=False):
     
     if not np.isnan(d):
         distance = d/1000
@@ -144,12 +163,22 @@ def evaluate_map_mp(id_, l, b, d, twomass=False):
             mwdust_aj = np.nan
             mwdust_ak = np.nan
 
+        if wise:
+            mwdust_aw1 = shared_dataset['WISE-1'](l, b, distance)[0]
+            mwdust_aw2 = shared_dataset['WISE-2'](l, b, distance)[0]
+        else:
+            mwdust_aw1 = np.nan
+            mwdust_aw2 = np.nan
+
         return (id_, shared_dataset['combined19'](l, b, distance)[0],
                 mwdust_ah,
                 mwdust_aj,
-                mwdust_ak)
+                mwdust_ak,
+                mwdust_aw1,
+                mwdust_aw2)
+
     else:
-        return id_, np.nan, np.nan, np.nan, np.nan
+        return id_, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan
 
 
 def load_combined19():
@@ -184,6 +213,22 @@ def load_2mass_K():
 
         dust_maps['2MASSK'] = combined_2massK
 
+def load_wise_W1():
+
+    if 'WISE-1' not in dust_maps.keys(): 
+        log.info('loading in combined19 WISE-1')
+        combined_wise1 = mwdust.Combined19(filter='WISE-1')
+
+        dust_maps['WISE-1'] = combined_wise1
+
+def load_wise_W2():
+
+    if 'WISE-2' not in dust_maps.keys(): 
+        log.info('loading in combined19 WISE-2')
+        combined_wise2 = mwdust.Combined19(filter='WISE-2')
+
+        dust_maps['WISE-2'] = combined_wise2
+
 def init_pool(dataset):
     
     global shared_dataset
@@ -198,9 +243,10 @@ if __name__ == '__main__':
     parser.add_argument('-b', help = 'galactic latitude column name', type=str, default='b')
     parser.add_argument('-d', help = 'distance column name', type=str, default='rpgeo')
     parser.add_argument('--twomass', default=False, action='store_true')
+    parser.add_argument('--wise', default=False, action='store_true')
     parser.add_argument('--mp', default=False, action='store_true')
 
     args = parser.parse_args()
 
     add_mwdust(args.catalog, l_column=args.l, b_column=args.b, distance_column=args.d,
-               twomass=args.twomass, use_mp=args.mp)
+               twomass=args.twomass, wise=args.wise, use_mp=args.mp)

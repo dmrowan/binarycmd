@@ -12,7 +12,7 @@ desc="""
 Create CSV for random gaia stars w/ 2mass and WISE crossmatch
 """
 
-filename = pkg_resources.resource_filename(__name__, '../data/' + 'random_gaia_test.csv')
+filename = pkg_resources.resource_filename(__name__, '../data/' + 'random_gaia.csv')
 
 def create():
 

@@ -109,12 +109,14 @@ class Star:
     def query_dist(self):
 
         r = Vizier(catalog="I/352/gedr3dis",
-                   columns=['Source', 'rpgeo']).query_constraints(
+                   columns=['Source', 'rpgeo', 'b_rpgeo', 'B_rpgeo']).query_constraints(
                         Source=str(self.Source))[0]
 
         r = r.to_pandas().iloc[0].to_dict()
 
         self.rpgeo = r['rpgeo']
+        self.rpgeo_lower = r['b_rpgeo']
+        self.rpgeo_upper = r['B_rpgeo']
 
     def query_mwdust(self):
 

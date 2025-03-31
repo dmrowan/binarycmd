@@ -39,15 +39,17 @@ class Star:
         if wise:
             self.query_wise()
 
-        if mwdust_ext:
-            self.query_mwdust()
-        self.calculate_color_mags()
+        if hasattr(self, 'rpgeo'):
+            if mwdust_ext:
+                self.query_mwdust()
+            self.calculate_color_mags()
 
 
     def query_gaia(self):
 
         r = Vizier(catalog="I/355/gaiadr3",
-                   columns=['Source', 'Gmag', 'BP-RP', 'RPlx',
+                   columns=['Source', 'Gmag', 'BPmag', 'RPmag', 
+                            'BP-RP', 'RPlx',
                             'AG', 'E(BP-RP)',
                             'RA_ICRS', 'DE_ICRS',
                             'GLON', 'GLAT']).query_constraints(
@@ -108,15 +110,18 @@ class Star:
 
     def query_dist(self):
 
-        r = Vizier(catalog="I/352/gedr3dis",
-                   columns=['Source', 'rpgeo', 'b_rpgeo', 'B_rpgeo']).query_constraints(
-                        Source=str(self.Source))[0]
+        try:
+            r = Vizier(catalog="I/352/gedr3dis",
+                       columns=['Source', 'rpgeo', 'b_rpgeo', 'B_rpgeo']).query_constraints(
+                            Source=str(self.Source))[0]
 
-        r = r.to_pandas().iloc[0].to_dict()
+            r = r.to_pandas().iloc[0].to_dict()
 
-        self.rpgeo = r['rpgeo']
-        self.rpgeo_lower = r['b_rpgeo']
-        self.rpgeo_upper = r['B_rpgeo']
+            self.rpgeo = r['rpgeo']
+            self.rpgeo_lower = r['b_rpgeo']
+            self.rpgeo_upper = r['B_rpgeo']
+        except:
+            print('Gaia distance query failed')
 
     def query_mwdust(self):
 
@@ -190,11 +195,13 @@ def plot(source_list, twomass=False, wise=False,
         for source in iterator:
             try:
                 star = Star(source, mwdust_ext=mwdust_ext, twomass=twomass, wise=wise)
-                star_list.append(star)
+                if hasattr(star, 'rpgeo'):
+                    star_list.append(star)
             except:
                 continue
         if len(star_list) == 0:
             print(source_list)
+
 
     fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=(8, 10))
     if created_fig:
@@ -209,19 +216,6 @@ def plot(source_list, twomass=False, wise=False,
     plot_kwargs.setdefault('edgecolor', 'black')
     plot_kwargs.setdefault('alpha', 0.8)
 
-    if xlim is None:
-        if twomass:
-            xlim = (-0.25, 1.2)
-        else:
-            xlim = (-0.6, 2.4)
-    if ylim is None:
-        if twomass:
-            ylim = (-6, 6)
-        else:
-            ylim = (-4.1, 8.5)
-    ax.set_xlim(*xlim)
-    ax.set_ylim(*ylim)
-    ax.invert_yaxis()
 
     if twomass:
         xlabel = r'$J - K$ (mag)'
@@ -259,10 +253,33 @@ def plot(source_list, twomass=False, wise=False,
                 ax.scatter(df_bkg.bp_rp_corrected, df_bkg.absolute_g, 
                            **sbkg_kwargs)
 
+    for s in star_list:
+        if not hasattr(s, 'bp_rp_corrected'):
+            print(s.Source)
     source = [ s.Source for s in star_list ]
     bp_rp = [ s.bp_rp_corrected for s in star_list ]
     absolute_g = [ s.absolute_g for s in star_list ]
     df_out = pd.DataFrame({'Source':source, 'bp_rp':bp_rp, 'mg':absolute_g})
+
+    #print(df_out)
+
+    if xlim is None:
+        if twomass:
+            xlim = (-0.25, 1.2)
+        else:
+            xlim = (-0.6, 2.4)
+            if df_out.bp_rp.max() > xlim[1]:
+                xlim = (xlim[0], df_out.bp_rp.max() + 0.2)
+    if ylim is None:
+        if twomass:
+            ylim = (-6, 6)
+        else:
+            ylim = (-4.1, 8.5)
+            if df_out.mg.max() > ylim[1]:
+                ylim = (ylim[0], df_out.mg.max() + 0.2)
+    ax.set_xlim(*xlim)
+    ax.set_ylim(*ylim)
+    ax.invert_yaxis()
 
     if twomass:
         j_k = [ s.j_k_corrected for s in star_list ]

@@ -22,11 +22,11 @@ Quick CMD plotter for list of Gaia DR3 sources
 """
 
 def get_data_file(filename):
-    return pkg_resources.resource_filename(__name__, '../data/' + filename)
+    return pkg_resources.resource_filename(__name__, 'data/' + filename)
 
 class Star:
 
-    def __init__(self, Source, mwdust_ext=False, twomass=False, wise=False):
+    def __init__(self, Source, mwdust_ext=False, twomass=False, wise=False, av=None):
 
         self.Source = Source
 
@@ -42,8 +42,13 @@ class Star:
         if hasattr(self, 'rpgeo'):
             if mwdust_ext:
                 self.query_mwdust()
+            elif av is not None:
+                self.mwdust_av = av
+                self.AG = self.mwdust_av*0.789
+                self.abp = self.mwdust_av*1.002
+                self.arp = self.mwdust_av*0.589
+                self.E_BP_RP_ = self.abp-self.arp
             self.calculate_color_mags()
-
 
     def query_gaia(self):
 
@@ -180,30 +185,38 @@ def plot(source_list, twomass=False, wise=False,
          background=get_data_file('random_gaia.csv'),
          hexbin=False,
          save_output=None,
-         hexbin_kwargs=None):
+         hexbin_kwargs=None,
+         av=None,
+         figsize=(10, 6)):
 
     if not cmdutils.check_iter(source_list):
 
         source_list = [source_list]
+    
+    if av is not None:
+        if not cmdutils.check_iter(av):
+            av = [av]
+        assert(len(av) == len(source_list))
 
     if star_list is None:
         star_list = []
         if len(source_list) > 10:
-            iterator = tqdm(source_list)
+            iterator = tqdm(enumerate(source_list))
         else:
-            iterator = source_list
-        for source in iterator:
+            iterator = enumerate(source_list)
+        for i, source in iterator:
             try:
-                star = Star(source, mwdust_ext=mwdust_ext, twomass=twomass, wise=wise)
+                av_val = av[i] if av is not None else None
+                star = Star(source, mwdust_ext=mwdust_ext, twomass=twomass, wise=wise, av=av_val)
                 if hasattr(star, 'rpgeo'):
                     star_list.append(star)
-            except:
+            except Exception as e:
                 continue
         if len(star_list) == 0:
             print(source_list)
 
 
-    fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=(8, 10))
+    fig, ax, created_fig = plotutils.fig_init(ax=ax, figsize=figsize)
     if created_fig:
         fig.subplots_adjust(top=.98, right=.98)
 
@@ -260,6 +273,7 @@ def plot(source_list, twomass=False, wise=False,
     bp_rp = [ s.bp_rp_corrected for s in star_list ]
     absolute_g = [ s.absolute_g for s in star_list ]
     df_out = pd.DataFrame({'Source':source, 'bp_rp':bp_rp, 'mg':absolute_g})
+    df_out['mwdust_av'] = [ s.mwdust_av for s in star_list ]
 
     #print(df_out)
 

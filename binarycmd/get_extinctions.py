@@ -23,6 +23,7 @@ l and b columns are deg, and distance column is in pc
 
 def add_mwdust(input_catalog, l_column='l', b_column='b',
                distance_column='rpgeo', use_mp=False,
+               n_processes=None,
                twomass=False, wise=False):
 
     catalog = cmdutils.pd_read(input_catalog)
@@ -57,7 +58,9 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
 
     if use_mp:
 
-        pool = mp.Pool(processes=mp.cpu_count(),
+        if n_processes is None:
+            n_processes = mp.cpu_count()
+        pool = mp.Pool(processes=n_processes,
                        initializer=init_pool,
                        initargs=(dust_maps,))
         manager = mp.Manager()
@@ -69,7 +72,7 @@ def add_mwdust(input_catalog, l_column='l', b_column='b',
 
         L = manager.list()
 
-        [pool.apply(cmdutils.manager_list_wrapper_silent,
+        [pool.apply_async(cmdutils.manager_list_wrapper_silent,
                 args=(evaluate_map_mp, L,
                       catalog.id.iloc[i],catalog[l_column].iloc[i],
                       catalog[b_column].iloc[i], catalog[distance_column].iloc[i],

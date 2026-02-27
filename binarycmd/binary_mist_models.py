@@ -28,7 +28,7 @@ def mist_iso(path, phot_system):
     
     isocmd = read_mist_models.ISOCMD(path)
 
-    ages = np.round_(np.arange(8, 10.25, 0.1,), 1)
+    ages = np.round(np.arange(8, 10.25, 0.1,), 1)
     sg_turnoff_vals = np.zeros(len(ages), dtype=object)
     rg_turnoff_vals = np.zeros(len(ages), dtype=object)
                 

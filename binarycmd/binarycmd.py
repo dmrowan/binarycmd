@@ -11,6 +11,7 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 from sklearn.preprocessing import MinMaxScaler
+import sys
 from tqdm import tqdm
 
 from . import photsys

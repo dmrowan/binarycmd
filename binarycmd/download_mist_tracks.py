@@ -8,7 +8,7 @@ import math
 import matplotlib.pyplot as plt
 import multiprocessing as mp
 import pandas as pd
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import pickle
 import requests
 from scipy.interpolate import interp1d

@@ -56,7 +56,7 @@ class Star:
                    columns=['Source', 'Gmag', 'BPmag', 'RPmag', 
                             'BP-RP', 'RPlx',
                             'AG', 'E(BP-RP)',
-                            'RA_ICRS', 'DE_ICRS',
+                            #'RA_ICRS', 'DE_ICRS',
                             'GLON', 'GLAT']).query_constraints(
                                     Source=str(self.Source))[0]
 
